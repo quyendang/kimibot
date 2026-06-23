@@ -35,6 +35,24 @@ def send_telegram(message, retries=1):
     return False
 
 
+def _format_price_list(values, limit=3):
+    if not values:
+        return "Chưa có"
+    return " / ".join(f"${float(value):,.0f}" for value in values[:limit])
+
+
+def _format_fibonacci(levels):
+    if not levels:
+        return "Chưa có"
+    preferred = ["0.382", "0.5", "0.618"]
+    items = [
+        f"{ratio}: ${float(levels[ratio]):,.0f}"
+        for ratio in preferred
+        if ratio in levels
+    ]
+    return " / ".join(items) if items else "Chưa có"
+
+
 def _format_scores(scores, total_score):
     """Shared score formatting for alert and summary."""
     lines = []
@@ -50,7 +68,7 @@ def _format_scores(scores, total_score):
     return "\n".join(lines)
 
 
-def build_alert_message(price_data, scores, total_score):
+def build_alert_message(price_data, scores, total_score, market_zones=None):
     """Build the alert message payload."""
     now = datetime.now().strftime("%H:%M:%S %d/%m/%Y")
     price = price_data["price"]
@@ -67,6 +85,11 @@ def build_alert_message(price_data, scores, total_score):
         emoji = "➖"
 
     symbol = escape_html(config.SYMBOL)
+    market_zones = market_zones or {}
+    support = market_zones.get("support_zones", [])
+    resistance = market_zones.get("resistance_zones", [])
+    poc = market_zones.get("poc")
+    fibonacci = market_zones.get("fibonacci", {})
 
     msg = f"""{emoji} <b>{symbol} - {action}</b>
 ⏰ <i>{now}</i>
@@ -77,14 +100,16 @@ def build_alert_message(price_data, scores, total_score):
 📈 Chi tiet chi bao:
 {_format_scores(scores, total_score)}
 
-🎯 Vung giao dich:
-   🟢 Mua: ${config.SUPPORT_ZONES[0]} / ${config.SUPPORT_ZONES[1]} / ${config.SUPPORT_ZONES[2]}
-   🔴 Ban:  ${config.RESISTANCE_ZONES[0]} / ${config.RESISTANCE_ZONES[1]} / ${config.RESISTANCE_ZONES[2]}"""
+🎯 Vung giao dich dong ({market_zones.get("timeframe", "4h")}):
+   🟢 Ho tro: {_format_price_list(support)}
+   🔴 Khang cu: {_format_price_list(resistance)}
+   🧱 POC: {f"${float(poc):,.0f}" if poc else "Chưa có"}
+   📐 Fib: {_format_fibonacci(fibonacci)}"""
 
     return msg
 
 
-def build_summary_message(price_data, scores, total_score):
+def build_summary_message(price_data, scores, total_score, market_zones=None):
     """Build a periodic summary report."""
     now = datetime.now().strftime("%H:%M:%S %d/%m/%Y")
     price = price_data["price"]
@@ -98,6 +123,10 @@ def build_summary_message(price_data, scores, total_score):
         bias = "⚪ TRUNG TINH"
 
     symbol = escape_html(config.SYMBOL)
+    market_zones = market_zones or {}
+    support = market_zones.get("support_zones", [])
+    resistance = market_zones.get("resistance_zones", [])
+    poc = market_zones.get("poc")
 
     msg = f"""📋 <b>{symbol} - Bao cao tong ket 12h</b>
 ⏰ <i>{now}</i>
@@ -108,9 +137,10 @@ def build_summary_message(price_data, scores, total_score):
 📈 Chi tiet chi bao:
 {_format_scores(scores, total_score)}
 
-🎯 Vung giao dich:
-   🟢 Mua: ${config.SUPPORT_ZONES[0]} / ${config.SUPPORT_ZONES[1]} / ${config.SUPPORT_ZONES[2]}
-   🔴 Ban:  ${config.RESISTANCE_ZONES[0]} / ${config.RESISTANCE_ZONES[1]} / ${config.RESISTANCE_ZONES[2]}"""
+🎯 Vung giao dich dong ({market_zones.get("timeframe", "4h")}):
+   🟢 Ho tro: {_format_price_list(support)}
+   🔴 Khang cu: {_format_price_list(resistance)}
+   🧱 POC: {f"${float(poc):,.0f}" if poc else "Chưa có"}"""
 
     return msg
 

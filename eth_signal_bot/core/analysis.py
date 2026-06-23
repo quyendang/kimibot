@@ -5,6 +5,7 @@ import math
 from eth_signal_bot.core import config
 from eth_signal_bot.exchanges.binance import fetch_klines, fetch_current_price
 from eth_signal_bot.indicators.signals import score_signals
+from eth_signal_bot.indicators.zones import calculate_dynamic_zones
 
 
 def _as_float(value):
@@ -75,6 +76,15 @@ def _build_summary(direction, confidence, scores):
     )
 
 
+def _select_primary_zones(zones_by_timeframe):
+    """Prefer 4h zones as the main trading map, then fall back to any available frame."""
+    if "4h" in zones_by_timeframe:
+        return zones_by_timeframe["4h"]
+    if "H4" in zones_by_timeframe:
+        return zones_by_timeframe["H4"]
+    return next(iter(zones_by_timeframe.values()), {})
+
+
 def analyze_market():
     """Fetch market data and return a normalized analysis snapshot."""
     price_data = fetch_current_price(config.SYMBOL)
@@ -83,10 +93,13 @@ def analyze_market():
 
     current_price = price_data["price"]
     scores = []
+    zones_by_timeframe = {}
     for label, tf_config in config.TIMEFRAMES.items():
         df = fetch_klines(config.SYMBOL, tf_config["interval"], tf_config["limit"])
         if df is not None and len(df) > 50:
-            result = score_signals(df, current_price, label)
+            zones = calculate_dynamic_zones(df, current_price)
+            zones_by_timeframe[label] = zones
+            result = score_signals(df, current_price, label, zones=zones)
             scores.append(
                 {
                     "timeframe": result["timeframe"],
@@ -97,6 +110,7 @@ def analyze_market():
                     "macd_hist": _as_float(result["macd_hist"]),
                     "ema20": _as_float(result["ema20"]),
                     "ema50": _as_float(result["ema50"]),
+                    "zones": result["zones"],
                     "signals": list(result["signals"]),
                 }
             )
@@ -107,6 +121,7 @@ def analyze_market():
     total_score = sum(s["total_score"] for s in scores) / len(scores)
     direction = _classify_direction(total_score)
     confidence = _confidence_label(total_score)
+    primary_zones = _select_primary_zones(zones_by_timeframe)
 
     return {
         "symbol": config.SYMBOL,
@@ -122,8 +137,15 @@ def analyze_market():
         "confidence_label": confidence,
         "summary": _build_summary(direction, confidence, scores),
         "timeframes": scores,
-        "support_zones": list(config.SUPPORT_ZONES),
-        "resistance_zones": list(config.RESISTANCE_ZONES),
+        "zones_timeframe": "4h" if "4h" in zones_by_timeframe else next(iter(zones_by_timeframe), None),
+        "zones_by_timeframe": zones_by_timeframe,
+        "support_zones": list(primary_zones.get("support", [])),
+        "resistance_zones": list(primary_zones.get("resistance", [])),
+        "fibonacci": dict(primary_zones.get("fib", {})),
+        "poc": primary_zones.get("poc"),
+        "volume_walls": list(primary_zones.get("volume_walls", [])),
+        "swing_high": primary_zones.get("swing_high"),
+        "swing_low": primary_zones.get("swing_low"),
         "buy_threshold": config.BUY_THRESHOLD,
         "sell_threshold": config.SELL_THRESHOLD,
         "check_interval": config.CHECK_INTERVAL,

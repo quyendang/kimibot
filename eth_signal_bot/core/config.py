@@ -13,10 +13,6 @@ BUY_THRESHOLD = int(os.getenv("BUY_THRESHOLD", 3))
 SELL_THRESHOLD = int(os.getenv("SELL_THRESHOLD", 3))
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 300))
 
-# Price zones for ETH (comma-separated integers)
-SUPPORT_ZONES = [int(x) for x in os.getenv("SUPPORT_ZONES", "1620,1590,1550").split(",") if x]
-RESISTANCE_ZONES = [int(x) for x in os.getenv("RESISTANCE_ZONES", "1685,1715,1780").split(",") if x]
-
 # Telegram
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")

@@ -13,6 +13,7 @@ eth_signal_bot/
 │   └── binance.py       # Gọi Binance API
 ├── indicators/
 │   ├── technicals.py    # RSI, EMA, MA, MACD
+│   ├── zones.py         # Support/Resistance động, Fibonacci, POC, volume walls
 │   └── signals.py       # Logic chấm điểm tín hiệu
 ├── notifiers/
 │   └── telegram.py      # Gửi tin nhắn Telegram
@@ -43,10 +44,11 @@ runtime.txt
 
 ## Dashboard index
 
-- `/` hiển thị dashboard read-only để nắm nhanh giá ETH, hướng Buy/Sell, score tổng hợp, vùng mua/bán và phân tích theo khung thời gian.
+- `/` hiển thị dashboard read-only để nắm nhanh giá ETH, hướng Buy/Sell, score tổng hợp, vùng hỗ trợ/kháng cự động, Fibonacci, POC, volume walls và phân tích theo khung thời gian.
 - `/api/snapshot` trả JSON snapshot cho dashboard. Endpoint này dùng cache theo `CHECK_INTERVAL`; thêm `?refresh=1` để yêu cầu làm mới thủ công nhưng vẫn có cooldown ngắn.
 - `/health` vẫn trả `OK` dạng plain text cho Railway / uptime monitor.
 - Dashboard không gửi Telegram và không hiển thị token/chat id.
+- Vùng giao dịch không còn hardcode. Bot tự tính từ pivot high/low, EMA/MA, Fibonacci swing high/low và Volume Profile trên dữ liệu nến mới.
 
 ## Deploy lên Railway
 
@@ -60,4 +62,4 @@ runtime.txt
 
 - Đổi khung thờ gian: `TF_1H`, `TF_4H`, `TF_1D`.
 - Đổi ngưỡng: `BUY_THRESHOLD`, `SELL_THRESHOLD`.
-- Đổi vùng hỗ trợ/kháng cự: `SUPPORT_ZONES`, `RESISTANCE_ZONES`.
+- Vùng hỗ trợ/kháng cự, Fibonacci, POC và volume walls được tính tự động theo thị trường.

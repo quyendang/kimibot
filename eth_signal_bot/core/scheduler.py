@@ -28,6 +28,13 @@ def analyze_and_alert(force_summary=False):
     }
     scores = snapshot["timeframes"]
     total_score = snapshot["total_score"]
+    market_zones = {
+        "timeframe": snapshot.get("zones_timeframe"),
+        "support_zones": snapshot.get("support_zones", []),
+        "resistance_zones": snapshot.get("resistance_zones", []),
+        "fibonacci": snapshot.get("fibonacci", {}),
+        "poc": snapshot.get("poc"),
+    }
 
     print(f"   Gia hien tai: ${price_data['price']:,.2f}")
     for result in scores:
@@ -40,7 +47,7 @@ def analyze_and_alert(force_summary=False):
     should_alert = total_score >= config.BUY_THRESHOLD or total_score <= -config.SELL_THRESHOLD
 
     if should_alert:
-        message = build_alert_message(price_data, scores, total_score)
+        message = build_alert_message(price_data, scores, total_score, market_zones=market_zones)
         success = send_telegram(message, retries=3)
         if success:
             print("   ✅ Da gui thong bao Telegram!")
@@ -50,7 +57,7 @@ def analyze_and_alert(force_summary=False):
             print(message)
             print(f"{'='*60}")
     elif force_summary:
-        message = build_summary_message(price_data, scores, total_score)
+        message = build_summary_message(price_data, scores, total_score, market_zones=market_zones)
         success = send_telegram(message, retries=3)
         if success:
             print("   ✅ Da gui bao cao tong ket Telegram!")

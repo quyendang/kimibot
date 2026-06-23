@@ -1,9 +1,8 @@
 """Signal scoring logic."""
-from eth_signal_bot.core import config
 from eth_signal_bot.indicators.technicals import calculate_rsi, calculate_ema, calculate_macd
 
 
-def score_signals(df, current_price, label):
+def score_signals(df, current_price, label, zones=None):
     """
     Score Buy/Sell signals across -5 to +5.
     Positive = Buy, Negative = Sell.
@@ -48,8 +47,8 @@ def score_signals(df, current_price, label):
         signals.append(f"MACD histogram âm ({hist_val:.2f})")
 
     # 3. EMA Trend
-    ema20 = calculate_ema(close, 20).iloc[-1]
-    ema50 = calculate_ema(close, 50).iloc[-1]
+    ema20 = zones["ema20"] if zones else calculate_ema(close, 20).iloc[-1]
+    ema50 = zones["ema50"] if zones else calculate_ema(close, 50).iloc[-1]
 
     if current_price > ema20 > ema50:
         buy_score += 1
@@ -58,17 +57,17 @@ def score_signals(df, current_price, label):
         sell_score += 1
         signals.append("Giá < EMA20 < EMA50 (Bearish)")
 
-    # 4. Support / Resistance zones
-    for sup in config.SUPPORT_ZONES:
+    # 4. Dynamic support / resistance zones
+    for sup in (zones or {}).get("support", []):
         if abs(current_price - sup) / current_price < 0.01:
             buy_score += 1
-            signals.append(f"Gần hỗ trợ ${sup} (Mua)")
+            signals.append(f"Gần hỗ trợ động ${sup:,.0f} (Mua)")
             break
 
-    for res in config.RESISTANCE_ZONES:
+    for res in (zones or {}).get("resistance", []):
         if abs(current_price - res) / current_price < 0.01:
             sell_score += 1
-            signals.append(f"Gần kháng cự ${res} (Bán)")
+            signals.append(f"Gần kháng cự động ${res:,.0f} (Bán)")
             break
 
     # 5. Price position within recent range
@@ -85,6 +84,16 @@ def score_signals(df, current_price, label):
             sell_score += 1
             signals.append(f"Giá ở đỉnh 20 nến ({position:.0%})")
 
+    # 6. Volume Profile POC
+    poc = (zones or {}).get("poc")
+    if poc and abs(current_price - poc) / current_price < 0.01:
+        if current_price < poc:
+            buy_score += 1
+            signals.append(f"Gần POC ${poc:,.0f} (hỗ trợ volume)")
+        else:
+            sell_score += 1
+            signals.append(f"Trên POC ${poc:,.0f} (kháng cự volume)")
+
     total_score = buy_score - sell_score
     return {
         "timeframe": label,
@@ -95,5 +104,6 @@ def score_signals(df, current_price, label):
         "macd_hist": hist_val,
         "ema20": ema20,
         "ema50": ema50,
+        "zones": zones or {},
         "signals": signals,
     }

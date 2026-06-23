@@ -213,6 +213,7 @@ INDEX_HTML = r"""<!doctype html>
     .metric strong, .zone strong { display: block; font-size: 18px; margin-top: 2px; }
     .zones { display: grid; gap: 10px; }
     .zone-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .zone-list.stack { display: grid; grid-template-columns: 1fr; }
     .tag {
       border: 1px solid var(--line);
       border-radius: 999px;
@@ -357,17 +358,26 @@ INDEX_HTML = r"""<!doctype html>
           <div class="metric"><span class="label">Cao 24h</span><strong id="high" class="mono">--</strong></div>
           <div class="metric"><span class="label">Thấp 24h</span><strong id="low" class="mono">--</strong></div>
           <div class="metric"><span class="label">Volume</span><strong id="volume" class="mono">--</strong></div>
-          <div class="metric"><span class="label">Lần quét tiếp</span><strong id="next-refresh" class="mono">--</strong></div>
+          <div class="metric"><span class="label">POC 4h</span><strong id="poc" class="mono">--</strong></div>
         </div>
         <div class="zones">
           <div class="zone">
-            <span class="label">Vùng chờ mua</span>
+            <span class="label">Vùng hỗ trợ động</span>
             <div id="support-zones" class="zone-list"></div>
           </div>
           <div class="zone">
-            <span class="label">Vùng canh bán</span>
+            <span class="label">Vùng kháng cự động</span>
             <div id="resistance-zones" class="zone-list"></div>
           </div>
+          <div class="zone">
+            <span class="label">Fibonacci swing H/L</span>
+            <div id="fib-zones" class="zone-list stack"></div>
+          </div>
+          <div class="zone">
+            <span class="label">Volume walls</span>
+            <div id="volume-walls" class="zone-list"></div>
+          </div>
+          <div class="metric"><span class="label">Lần quét tiếp</span><strong id="next-refresh" class="mono">--</strong></div>
         </div>
       </aside>
     </section>
@@ -401,6 +411,23 @@ INDEX_HTML = r"""<!doctype html>
 
     function renderZones(id, zones) {
       el(id).innerHTML = (zones || []).map((zone) => `<span class="tag mono">${fmtMoney(zone, 0)}</span>`).join("");
+    }
+
+    function renderFibonacci(data) {
+      const fib = data.fibonacci || {};
+      const rows = ["0.382", "0.5", "0.618"].filter((key) => fib[key]).map((key) => {
+        return `<span class="tag mono">Fib ${key}: ${fmtMoney(fib[key], 0)}</span>`;
+      });
+      if (data.swing_high && data.swing_low) {
+        rows.unshift(`<span class="tag mono">H ${fmtMoney(data.swing_high, 0)} / L ${fmtMoney(data.swing_low, 0)}</span>`);
+      }
+      el("fib-zones").innerHTML = rows.join("") || `<span class="tag">Chưa có</span>`;
+    }
+
+    function renderVolumeWalls(walls) {
+      el("volume-walls").innerHTML = (walls || []).slice(0, 3).map((wall) => {
+        return `<span class="tag mono">${fmtMoney(wall.price, 0)}</span>`;
+      }).join("") || `<span class="tag">Chưa có</span>`;
     }
 
     function renderTimeframes(rows) {
@@ -448,9 +475,12 @@ INDEX_HTML = r"""<!doctype html>
       el("high").textContent = fmtMoney(data.high_24h);
       el("low").textContent = fmtMoney(data.low_24h);
       el("volume").textContent = fmtNum(data.volume, 0);
+      el("poc").textContent = data.poc ? fmtMoney(data.poc, 0) : "--";
       el("next-refresh").textContent = `${Math.max(0, Number(data.next_refresh_seconds || 0)).toFixed(0)}s`;
       renderZones("support-zones", data.support_zones);
       renderZones("resistance-zones", data.resistance_zones);
+      renderFibonacci(data);
+      renderVolumeWalls(data.volume_walls);
       renderTimeframes(data.timeframes);
     }
 

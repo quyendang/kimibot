@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.env
+!.env.example
+.venv/
+venv/
+.env.local
+.DS_Store
+.playwright-mcp/
+.claude/settings.local.json

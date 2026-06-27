@@ -198,6 +198,93 @@ INDEX_HTML = r"""<!doctype html>
       color: #c9d4df;
       font-size: 16px;
     }
+    .trade-plans {
+      display: grid;
+      gap: 10px;
+      border-top: 1px solid var(--line);
+      padding-top: 18px;
+    }
+    .trade-plans-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .trade-plans-head strong { font-size: 16px; }
+    .active-plan {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+    }
+    .plan-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .plan {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 13px;
+      background: rgba(29, 37, 46, .68);
+      display: grid;
+      gap: 10px;
+    }
+    .plan.ready.buy { border-color: rgba(20, 184, 166, .72); background: rgba(20, 184, 166, .10); }
+    .plan.ready.sell { border-color: rgba(244, 63, 94, .72); background: rgba(244, 63, 94, .10); }
+    .plan.wait { border-color: rgba(217, 119, 6, .48); }
+    .plan.not_favored, .plan.unavailable { opacity: .72; }
+    .plan-head, .plan-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .plan-side {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+    .plan-side.buy { color: var(--buy); }
+    .plan-side.sell { color: var(--sell); }
+    .badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 8px;
+      color: var(--muted);
+      background: rgba(16, 20, 25, .42);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .plan.ready .badge { color: var(--text); }
+    .plan-entry {
+      display: grid;
+      gap: 2px;
+    }
+    .plan-entry strong {
+      font-size: clamp(19px, 2.7vw, 28px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+    .plan-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .plan-metric {
+      border-top: 1px solid var(--line);
+      padding-top: 7px;
+      min-width: 0;
+    }
+    .plan-metric strong {
+      display: block;
+      overflow-wrap: anywhere;
+    }
+    .plan-trigger {
+      margin: 0;
+      color: #c9d4df;
+      font-size: 13px;
+    }
     .side { padding: 18px; display: grid; align-content: start; gap: 16px; }
     .metric-grid {
       display: grid;
@@ -306,7 +393,9 @@ INDEX_HTML = r"""<!doctype html>
       .shell { width: min(100% - 24px, 680px); padding-top: 12px; }
       .topbar, .hero-head { align-items: stretch; flex-direction: column; }
       .actions { justify-content: flex-start; }
-      .grid, .timeframes { grid-template-columns: 1fr; }
+      .grid, .timeframes, .plan-grid { grid-template-columns: 1fr; }
+      .trade-plans-head { align-items: flex-start; flex-direction: column; }
+      .active-plan { text-align: left; }
       .signal { border-left: 0; border-top: 1px solid var(--line); padding: 16px 0 0; text-align: left; }
       .metric-grid { grid-template-columns: 1fr; }
       .price { font-size: clamp(40px, 14vw, 54px); }
@@ -351,6 +440,14 @@ INDEX_HTML = r"""<!doctype html>
         </div>
 
         <p id="summary" class="summary">Đang lấy dữ liệu thị trường và tổng hợp tín hiệu.</p>
+
+        <div class="trade-plans" aria-label="Kế hoạch giao dịch">
+          <div class="trade-plans-head">
+            <strong>Kế hoạch giao dịch</strong>
+            <span id="active-plan" class="active-plan mono">Đang tải</span>
+          </div>
+          <div id="trade-plans" class="plan-grid" aria-live="polite"></div>
+        </div>
       </div>
 
       <aside class="panel side" aria-label="Thông tin nhanh">
@@ -398,6 +495,7 @@ INDEX_HTML = r"""<!doctype html>
     const fmtMoney = (value, digits = 2) => new Intl.NumberFormat("en-US", {
       style: "currency", currency: "USD", maximumFractionDigits: digits
     }).format(Number(value || 0));
+    const fmtMaybeMoney = (value, digits = 2) => value === null || value === undefined ? "--" : fmtMoney(value, digits);
     const fmtNum = (value, digits = 0) => new Intl.NumberFormat("en-US", {
       maximumFractionDigits: digits
     }).format(Number(value || 0));
@@ -428,6 +526,40 @@ INDEX_HTML = r"""<!doctype html>
       el("volume-walls").innerHTML = (walls || []).slice(0, 3).map((wall) => {
         return `<span class="tag mono">${fmtMoney(wall.price, 0)}</span>`;
       }).join("") || `<span class="tag">Chưa có</span>`;
+    }
+
+    function renderTradePlans(plans, activePlan) {
+      const activeText = activePlan
+        ? `${activePlan.side} · ${activePlan.status_label}`
+        : "Chờ tín hiệu rõ";
+      el("active-plan").textContent = activeText;
+      el("trade-plans").innerHTML = (plans || []).map((plan) => {
+        const sideClass = plan.side === "BUY" ? "buy" : "sell";
+        const targets = (plan.targets || []).length
+          ? plan.targets.map((target) => fmtMoney(target, 0)).join(" / ")
+          : "--";
+        const entryText = plan.entry_low === null || plan.entry_high === null
+          ? "--"
+          : `${fmtMoney(plan.entry_low)} - ${fmtMoney(plan.entry_high)}`;
+        return `
+          <article class="plan ${plan.status} ${sideClass}">
+            <div class="plan-head">
+              <span class="plan-side ${sideClass}">${plan.side}</span>
+              <span class="badge">${plan.status_label}</span>
+            </div>
+            <div class="plan-entry">
+              <span class="label">Vùng vào</span>
+              <strong class="mono">${entryText}</strong>
+              <span class="meta">${plan.reference_label || "--"} ${fmtMaybeMoney(plan.reference_price, 0)}</span>
+            </div>
+            <div class="plan-metrics">
+              <div class="plan-metric"><span class="label">Stop loss</span><strong class="mono">${fmtMaybeMoney(plan.stop_loss)}</strong></div>
+              <div class="plan-metric"><span class="label">Target</span><strong class="mono">${targets}</strong></div>
+            </div>
+            <p class="plan-trigger">${plan.trigger}</p>
+          </article>
+        `;
+      }).join("");
     }
 
     function renderTimeframes(rows) {
@@ -481,6 +613,7 @@ INDEX_HTML = r"""<!doctype html>
       renderZones("resistance-zones", data.resistance_zones);
       renderFibonacci(data);
       renderVolumeWalls(data.volume_walls);
+      renderTradePlans(data.trade_plans, data.active_trade_plan);
       renderTimeframes(data.timeframes);
     }
 

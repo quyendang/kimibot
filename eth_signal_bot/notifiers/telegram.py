@@ -2,7 +2,6 @@
 from datetime import datetime
 import html
 import time
-import requests
 
 from eth_signal_bot.core import config
 
@@ -14,6 +13,8 @@ def escape_html(text):
 
 def send_telegram(message, retries=1):
     """Send an HTML message via Telegram Bot API with optional retries."""
+    import requests
+
     if not config.TELEGRAM_BOT_TOKEN or not config.TELEGRAM_CHAT_ID:
         print("[WARN] Chua cau hinh Telegram Bot Token / Chat ID!")
         return False
@@ -143,6 +144,26 @@ def build_summary_message(price_data, scores, total_score, market_zones=None):
    🧱 POC: {f"${float(poc):,.0f}" if poc else "Chưa có"}"""
 
     return msg
+
+
+def build_usdt_dominance_alert_message(
+    value,
+    min_value,
+    max_value,
+    source_url=None,
+    checked_at=None,
+):
+    """Build the USDT market-cap percentage range alert message."""
+    checked_at = checked_at or datetime.now()
+    now = checked_at.strftime("%H:%M:%S %d/%m/%Y")
+    source_url = source_url or config.COINGECKO_GLOBAL_URL
+
+    return f"""🟡 <b>USDT Market Cap Alert</b>
+⏰ <i>{now}</i>
+
+📊 data.market_cap_percentage.usdt: <b>{float(value):.4f}%</b>
+🎯 Vùng kích hoạt: <b>{float(min_value):.2f}% - {float(max_value):.2f}%</b>
+🔗 Nguồn: {escape_html(source_url)}"""
 
 
 def build_startup_message():

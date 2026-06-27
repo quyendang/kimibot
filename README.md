@@ -1,6 +1,7 @@
 # ETH/USDT Technical Analysis Signal Bot
 
 Bot phân tích kỹ thuật ETH/USDT từ Binance và gửi cảnh báo Buy/Sell qua Telegram khi điểm tín hiệu đạt ngưỡng.
+Bot cũng có thể kiểm tra định kỳ tỷ trọng market cap USDT từ CoinGecko và gửi Telegram khi giá trị đi vào vùng cấu hình.
 
 ## Cấu trúc repo
 
@@ -50,6 +51,14 @@ runtime.txt
 - Dashboard không gửi Telegram và không hiển thị token/chat id.
 - Vùng giao dịch không còn hardcode. Bot tự tính từ pivot high/low, EMA/MA, Fibonacci swing high/low và Volume Profile trên dữ liệu nến mới.
 
+## Cảnh báo USDT market cap percentage
+
+- Bot gọi `COINGECKO_GLOBAL_URL` mặc định `https://api.coingecko.com/api/v3/global`.
+- Field được kiểm tra là `data.market_cap_percentage.usdt`.
+- Mặc định cứ `USDT_DOMINANCE_CHECK_INTERVAL=600` giây kiểm tra một lần.
+- Nếu giá trị đi vào vùng inclusive `USDT_DOMINANCE_MIN=8.4` đến `USDT_DOMINANCE_MAX=8.5`, bot gửi một tin Telegram.
+- Bot chỉ gửi khi giá trị chuyển từ ngoài vùng vào trong vùng, không spam mỗi 10 phút khi giá trị vẫn nằm trong vùng.
+
 ## Deploy lên Railway
 
 1. Push repo lên GitHub.
@@ -62,4 +71,5 @@ runtime.txt
 
 - Đổi khung thờ gian: `TF_1H`, `TF_4H`, `TF_1D`.
 - Đổi ngưỡng: `BUY_THRESHOLD`, `SELL_THRESHOLD`.
+- Đổi cảnh báo USDT: `USDT_DOMINANCE_MIN`, `USDT_DOMINANCE_MAX`, `USDT_DOMINANCE_CHECK_INTERVAL`.
 - Vùng hỗ trợ/kháng cự, Fibonacci, POC và volume walls được tính tự động theo thị trường.

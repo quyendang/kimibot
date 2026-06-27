@@ -4,6 +4,7 @@ import time
 
 from eth_signal_bot.core import config
 from eth_signal_bot.core.analysis import analyze_market
+from eth_signal_bot.core.usdt_dominance import UsdtDominanceMonitor
 from eth_signal_bot.notifiers.telegram import (
     send_telegram,
     build_alert_message,
@@ -76,24 +77,39 @@ def main_loop():
     print(f"  Check interval: {config.CHECK_INTERVAL}s ({config.CHECK_INTERVAL // 60} phut)")
     print(f"  Buy threshold:  >= {config.BUY_THRESHOLD}")
     print(f"  Sell threshold: <= {-config.SELL_THRESHOLD}")
+    print(
+        "  USDT dominance: "
+        f"{config.USDT_DOMINANCE_MIN:.2f}% - {config.USDT_DOMINANCE_MAX:.2f}% "
+        f"every {config.USDT_DOMINANCE_CHECK_INTERVAL}s"
+    )
     print("=" * 60)
 
     if not config.TELEGRAM_BOT_TOKEN or not config.TELEGRAM_CHAT_ID:
         print("\n⚠️  CANH BAO: Chua cau hinh TELEGRAM_BOT_TOKEN hoac TELEGRAM_CHAT_ID!")
         print("   Dat cac bien moi truong trong Railway Variables.")
 
-    analyze_and_alert()
+    usdt_monitor = UsdtDominanceMonitor(sender=send_telegram)
 
     summary_interval = 12 * 60 * 60  # 12 tieng
     next_summary_at = datetime.now() + timedelta(seconds=summary_interval)
+    next_analysis_at = datetime.now()
+    next_usdt_check_at = datetime.now()
 
     while True:
-        print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Cho {config.CHECK_INTERVAL}s...")
-        time.sleep(config.CHECK_INTERVAL)
-
         now = datetime.now()
-        force_summary = now >= next_summary_at
-        analyze_and_alert(force_summary=force_summary)
+        if now >= next_analysis_at:
+            force_summary = now >= next_summary_at
+            analyze_and_alert(force_summary=force_summary)
+            next_analysis_at = now + timedelta(seconds=config.CHECK_INTERVAL)
 
-        if force_summary:
-            next_summary_at = now + timedelta(seconds=summary_interval)
+            if force_summary:
+                next_summary_at = now + timedelta(seconds=summary_interval)
+
+        if now >= next_usdt_check_at:
+            print(f"\n[{now.strftime('%H:%M:%S')}] Kiem tra USDT market cap percentage...")
+            usdt_monitor.check(checked_at=now)
+            next_usdt_check_at = now + timedelta(seconds=config.USDT_DOMINANCE_CHECK_INTERVAL)
+
+        next_run_at = min(next_analysis_at, next_usdt_check_at)
+        sleep_seconds = max(1, min(60, (next_run_at - datetime.now()).total_seconds()))
+        time.sleep(sleep_seconds)

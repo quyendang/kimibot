@@ -13,6 +13,15 @@ BUY_THRESHOLD = int(os.getenv("BUY_THRESHOLD", 3))
 SELL_THRESHOLD = int(os.getenv("SELL_THRESHOLD", 3))
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 300))
 
+# CoinGecko global USDT market-cap percentage monitor
+COINGECKO_GLOBAL_URL = os.getenv(
+    "COINGECKO_GLOBAL_URL",
+    "https://api.coingecko.com/api/v3/global",
+)
+USDT_DOMINANCE_CHECK_INTERVAL = int(os.getenv("USDT_DOMINANCE_CHECK_INTERVAL", 600))
+USDT_DOMINANCE_MIN = float(os.getenv("USDT_DOMINANCE_MIN", 8.4))
+USDT_DOMINANCE_MAX = float(os.getenv("USDT_DOMINANCE_MAX", 8.5))
+
 # Telegram
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")

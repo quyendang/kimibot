@@ -6,6 +6,7 @@ from eth_signal_bot.core import config
 from eth_signal_bot.exchanges.binance import fetch_klines, fetch_current_price
 from eth_signal_bot.indicators.signals import score_signals
 from eth_signal_bot.indicators.zones import calculate_dynamic_zones
+from eth_signal_bot.core.trade_plan import build_trade_plans
 
 
 def _as_float(value):
@@ -122,6 +123,12 @@ def analyze_market():
     direction = _classify_direction(total_score)
     confidence = _confidence_label(total_score)
     primary_zones = _select_primary_zones(zones_by_timeframe)
+    trade_plans, active_trade_plan = build_trade_plans(
+        current_price,
+        total_score,
+        direction,
+        primary_zones,
+    )
 
     return {
         "symbol": config.SYMBOL,
@@ -146,6 +153,8 @@ def analyze_market():
         "volume_walls": list(primary_zones.get("volume_walls", [])),
         "swing_high": primary_zones.get("swing_high"),
         "swing_low": primary_zones.get("swing_low"),
+        "trade_plans": trade_plans,
+        "active_trade_plan": active_trade_plan,
         "buy_threshold": config.BUY_THRESHOLD,
         "sell_threshold": config.SELL_THRESHOLD,
         "check_interval": config.CHECK_INTERVAL,
